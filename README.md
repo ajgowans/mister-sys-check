@@ -62,7 +62,8 @@ Repositories with a 'sys' folder: 22
 Errors encountered: 3
 
 Total runtime: 1 minutes, 42 seconds
-Configuration
+
+## Configuration
 To increase GitHub API limits, you can provide your own GitHub token by replacing the value of GITHUB_TOKEN in the script:
 
 GITHUB_TOKEN = "your_token_here"
