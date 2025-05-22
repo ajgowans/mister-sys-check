@@ -55,7 +55,7 @@ Core2 — Last sys/ update: 2023-07-22T18:33:04Z by dev567 — Status: Deprecate
 
 CSV output saved as: mister_sys_folders_2025-05-22_14-55-33.csv
 
-## Summary:
+Summary:
 Total repositories retrieved: 85
 Repositories checked (excluding exceptions): 65
 Repositories with a 'sys' folder: 22
