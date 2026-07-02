@@ -14,6 +14,7 @@
     "LXDE-Head_MiSTer",
     "Linux_Image_creator_MiSTer",
     "Linux-Kernel_MiSTer",
+    "Main_MiSTer",
     "MRA-Alternatives_MiSTer",
     "MidiLink_MiSTer",
     "MiSTer-bootstrap",
@@ -35,11 +36,14 @@
     "Wiki_MiSTer",
     "mr-fusion",
     "u-boot_MiSTer",
-    "xow_MiSTer"
+    "xow_MiSTer",
+    "Arcade-1942_MiSTer",
+    "Arcade-1943_MiSTer",
+    "Arcade-GnG_MiSTer",
+    "Arcade-SkySkipper_MiSTer"
   ],
   "special_sys_paths": {
     "Apple-I_MiSTer": "boards/MiSTer/sys",
-    "Arcade-Cave_MiSTer": "quartus/sys",
     "PDP1_MiSTer": "src/sys"
   }
 }
