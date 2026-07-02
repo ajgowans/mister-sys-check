@@ -8,6 +8,12 @@ Double-click `run_mister_sys_check.command` on macOS. The first run creates a lo
 
 Reports are written to `reports/`. When a new report is created, older `mister_sys_folders_*.csv` files in `reports/` are moved to `reports/archive/`.
 
+## Config
+
+Skipped repositories and special `.sys` folder locations live in `config/mister_sys_check.json`.
+
+Use `excluded_repos` for repos that should never be checked, and `special_sys_paths` for cores whose `.sys` folder is not at the repo root.
+
 ## Terminal run
 
 ```sh
@@ -33,5 +39,6 @@ The token is read from the environment and is not stored in the project.
 ```sh
 python mistersyscheck.py --include-archived
 python mistersyscheck.py --keep-old-reports
+python mistersyscheck.py --config config/mister_sys_check.json
 python mistersyscheck.py --reports-dir /path/to/reports
 ```

@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import argparse
 import csv
+import json
 import logging
 import os
 import shutil
@@ -19,52 +20,8 @@ from tqdm import tqdm
 API_URL = "https://api.github.com"
 DEFAULT_ORG = "MiSTer-devel"
 REPORT_PREFIX = "mister_sys_folders_"
-
-EXCLUDED_REPOS = {
-    "u-boot_MiSTer",
-    "Linux_Image_creator_MiSTer",
-    "Main_MiSTer",
-    "Hardware_MiSTer",
-    "SD-InstallTool_Win_MiSTer",
-    "SD-Installer-Win64_MiSTer",
-    "Injector_MiSTer",
-    "MiSTer-bootstrap",
-    "Filters_MiSTer",
-    "Updater_script_MiSTer",
-    "Scripts_MiSTer",
-    "MiSTer-devel.github.io",
-    "MidiLink_MiSTer",
-    "Fonts_MiSTer",
-    "MiSTerConfigurator",
-    "LXDE-Head_MiSTer",
-    "Hardware_alternative",
-    "MRA-Alternatives_MiSTer",
-    "Retro-Controllers-USB-MiSTer",
-    "mr-fusion",
-    "xow_MiSTer",
-    "T80",
-    "T65",
-    "Distribution_MiSTer",
-    "Linux-Kernel_MiSTer",
-    "Downloader_MiSTer",
-    "ShadowMasks_MiSTer",
-    "Presets_MiSTer",
-    "PDFViewer_MiSTer",
-    "MkDocs_MiSTer",
-    "ArcadeDatabase_MiSTer",
-    "Gamecontrollerdb_MiSTer",
-    "Wiki_MiSTer",
-    "Hiscores_MiSTer",
-    "Cheats_MiSTer",
-    "N64_ROM_Database",
-    "Template_MiSTer",
-}
-
-SPECIAL_SYS_PATHS = {
-    "PDP1_MiSTer": "src/sys",
-    "Apple-I_MiSTer": "boards/MiSTer/sys",
-    "Arcade-Cave_MiSTer": "quartus/sys",
-}
+PROJECT_ROOT = Path(__file__).resolve().parents[1]
+DEFAULT_CONFIG_PATH = PROJECT_ROOT / "config" / "mister_sys_check.json"
 
 CSV_HEADER = [
     "Core Name",
@@ -117,6 +74,43 @@ class RunSummary:
 class RateLimitStatus:
     remaining: int
     reset_time: datetime
+
+
+@dataclass(frozen=True)
+class AppConfig:
+    excluded_repos: frozenset[str]
+    special_sys_paths: dict[str, str]
+
+
+def load_config(path: Path) -> AppConfig:
+    try:
+        with path.open("r", encoding="utf-8") as file:
+            data = json.load(file)
+    except FileNotFoundError as exc:
+        raise ValueError(f"Config file not found: {path}") from exc
+    except json.JSONDecodeError as exc:
+        raise ValueError(f"Config file is not valid JSON: {path}") from exc
+
+    excluded_repos = data.get("excluded_repos", [])
+    special_sys_paths = data.get("special_sys_paths", {})
+
+    if not isinstance(excluded_repos, list) or not all(
+        isinstance(repo, str) for repo in excluded_repos
+    ):
+        raise ValueError("Config field 'excluded_repos' must be a list of strings.")
+
+    if not isinstance(special_sys_paths, dict) or not all(
+        isinstance(repo, str) and isinstance(path_value, str)
+        for repo, path_value in special_sys_paths.items()
+    ):
+        raise ValueError(
+            "Config field 'special_sys_paths' must be an object of string values."
+        )
+
+    return AppConfig(
+        excluded_repos=frozenset(excluded_repos),
+        special_sys_paths=dict(special_sys_paths),
+    )
 
 
 def parse_github_datetime(value: str | None) -> datetime | None:
@@ -217,6 +211,7 @@ def build_report(
     session: Session,
     repos: Iterable[dict[str, Any]],
     org: str,
+    config: AppConfig,
     exclude_archived: bool,
 ) -> tuple[list[ReportRow], RunSummary]:
     summary = RunSummary()
@@ -226,7 +221,7 @@ def build_report(
         repo_name = repo["name"]
         summary.total_repos += 1
 
-        if repo_name in EXCLUDED_REPOS:
+        if repo_name in config.excluded_repos:
             continue
 
         is_archived = repo.get("archived", False)
@@ -236,7 +231,7 @@ def build_report(
 
         summary.checked_repos += 1
         status = "Deprecated" if is_archived else "Active"
-        sys_path = SPECIAL_SYS_PATHS.get(repo_name, "sys")
+        sys_path = config.special_sys_paths.get(repo_name, "sys")
         sys_commit = get_latest_commit(session, org, repo_name, sys_path)
 
         if not sys_commit:
@@ -271,11 +266,15 @@ def build_report(
     return results, summary
 
 
-def estimate_commit_requests(repos: Iterable[dict[str, Any]], exclude_archived: bool) -> int:
+def estimate_commit_requests(
+    repos: Iterable[dict[str, Any]],
+    config: AppConfig,
+    exclude_archived: bool,
+) -> int:
     checked_repos = 0
     for repo in repos:
         repo_name = repo["name"]
-        if repo_name in EXCLUDED_REPOS:
+        if repo_name in config.excluded_repos:
             continue
         if exclude_archived and repo.get("archived", False):
             continue
@@ -364,9 +363,15 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
     parser.add_argument("--org", default=DEFAULT_ORG, help="GitHub organization to scan.")
     parser.add_argument(
         "--reports-dir",
-        default=Path(__file__).resolve().parents[1] / "reports",
+        default=PROJECT_ROOT / "reports",
         type=Path,
         help="Directory where the latest CSV report is written.",
+    )
+    parser.add_argument(
+        "--config",
+        default=DEFAULT_CONFIG_PATH,
+        type=Path,
+        help="JSON config file with excluded repos and special .sys paths.",
     )
     parser.add_argument(
         "--include-archived",
@@ -399,6 +404,12 @@ def main(argv: list[str] | None = None) -> int:
     )
 
     start_time = time.time()
+    try:
+        config = load_config(args.config)
+    except ValueError as exc:
+        print(exc, file=sys.stderr)
+        return 1
+
     session = create_session(args.token)
 
     rate_limit = get_rate_limit_status(session)
@@ -414,6 +425,7 @@ def main(argv: list[str] | None = None) -> int:
 
     required_requests = estimate_commit_requests(
         repos,
+        config=config,
         exclude_archived=not args.include_archived,
     )
     rate_limit = get_rate_limit_status(session)
@@ -438,6 +450,7 @@ def main(argv: list[str] | None = None) -> int:
         session=session,
         repos=repos,
         org=args.org,
+        config=config,
         exclude_archived=not args.include_archived,
     )
     report_path = write_csv(
