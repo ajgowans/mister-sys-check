@@ -8,6 +8,12 @@ Double-click `run_mister_sys_check.command` on macOS. The first run creates a lo
 
 Reports are written to `reports/`. When a new report is created, older `mister_sys_folders_*.csv` files in `reports/` are moved to `reports/archive/`.
 
+## One-click run and publish
+
+Double-click `run_mister_sys_check_and_publish.command` to run the report, commit report changes in `reports/`, and push them to GitHub.
+
+This only commits after the report run succeeds. The normal `run_mister_sys_check.command` still runs locally without committing or pushing.
+
 ## Config
 
 Skipped repositories and special `.sys` folder locations live in `config/mister_sys_check.json`.

@@ -2,5 +2,4 @@
 __pycache__/
 *.py[cod]
 .DS_Store
-reports/*.csv
-reports/archive/*.csv
+reports/archive/incomplete_*.csv
